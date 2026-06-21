@@ -1,3 +1,5 @@
+const db = require('./db')
+
 module.exports = function setupCommands(bot) {
 
   // 🟢 START
@@ -19,11 +21,11 @@ module.exports = function setupCommands(bot) {
   // 🏆 RANKING
   bot.command('ranking', async (ctx) => {
     ctx.reply("🏆 Buscando ranking da semana...")
-    
-    // depois você conecta com Supabase aqui
+
+    // depois conectar com banco
   })
 
-  // ⏱ TEMPO DE USUÁRIO
+  // ⏱ TEMPO DE USUÁRIO (CORRIGIDO)
   bot.command('tempo', async (ctx) => {
     const args = ctx.message.text.split(' ')
 
@@ -31,11 +33,28 @@ module.exports = function setupCommands(bot) {
       return ctx.reply("❌ Use: /tempo @usuario")
     }
 
-    const username = args[1]
+    const username = args[1].replace('@', '')
 
-    ctx.reply(`⏱ Buscando tempo de ${username}...`)
-    
-    // depois conecta no banco
+    try {
+      const result = await db.query(
+        'SELECT total_minutes FROM users WHERE username = $1',
+        [username]
+      )
+
+      if (result.rows.length === 0) {
+        return ctx.reply("❌ Usuário não encontrado no banco.")
+      }
+
+      const minutes = result.rows[0].total_minutes
+
+      return ctx.reply(
+        `⏱ @${username} tem ${minutes} minutos registrados na semana.`
+      )
+
+    } catch (err) {
+      console.error(err)
+      return ctx.reply("❌ Erro ao buscar dados.")
+    }
   })
 
   // 🔄 RESET (ADMIN)
