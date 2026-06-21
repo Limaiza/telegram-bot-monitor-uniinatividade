@@ -1,5 +1,15 @@
+require('dotenv').config()
+
+const { Telegraf } = require('telegraf')
 const db = require('./db')
 const { handleMessage } = require('./logic')
+
+const bot = new Telegraf(process.env.BOT_TOKEN)
+
+global.bot = bot
+
+// 🔥 MUITO IMPORTANTE (resolve PV que não responde)
+bot.telegram.deleteWebhook()
 
 // ======================
 // 🔐 CHECK ADMIN
@@ -18,7 +28,7 @@ async function isAdmin(bot, userId, groupId) {
 }
 
 // ======================
-// 🤖 BOT HANDLER ÚNICO
+// 🤖 HANDLER ÚNICO
 // ======================
 bot.on('text', async (ctx) => {
 
@@ -26,7 +36,7 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text
 
   // ======================
-  // 💬 PRIVADO = PAINEL ADMIN
+  // 💬 PV = PAINEL ADMIN
   // ======================
   if (ctx.chat.type === 'private') {
 
@@ -48,14 +58,10 @@ bot.on('text', async (ctx) => {
       }
     }
 
-    // ❌ não é admin de nenhum grupo monitorado
     if (!isAllowed) {
       return ctx.reply('❌ Você não é admin de nenhum grupo monitorado.')
     }
 
-    // ======================
-    // 📊 PAINEL ADMIN
-    // ======================
     if (text === '/start') {
       return ctx.reply('📊 Painel admin ativo\n\nComandos:\n/usuarios\n/metas\n/tempo @user')
     }
@@ -136,3 +142,10 @@ bot.on('text', async (ctx) => {
     ctx.chat.id
   )
 })
+
+// ======================
+// 🚀 START BOT
+// ======================
+bot.launch()
+
+console.log('🤖 Bot rodando')
