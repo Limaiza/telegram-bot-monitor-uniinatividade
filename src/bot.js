@@ -1,163 +1,186 @@
 require('dotenv').config()
 
 const { Telegraf } = require('telegraf')
+
 const db = require('./db')
 const { handleMessage } = require('./logic')
 
-const bot = new Telegraf(process.env.BOT_TOKEN)
+const registerCommands = require('./commands')
+
+require('./scheduler')
+
+const bot = new Telegraf(
+process.env.BOT_TOKEN
+)
 
 global.bot = bot
 
-// 🔥 remove webhook (ESSENCIAL)
-bot.telegram.deleteWebhook()
+registerCommands(bot)
 
-// ======================
-// 🔐 CHECK ADMIN + DONO
-// ======================
-async function isAdmin(bot, userId, groupId) {
-  try {
-    const member = await bot.telegram.getChatMember(groupId, userId)
+async function isAdmin(
+bot,
+userId,
+groupId
+) {
+try {
 
-    const status = member?.status
+const member =
+  await bot.telegram.getChatMember(
+    groupId,
+    userId
+  )
 
-    return status === 'administrator' || status === 'creator'
+return (
+  member?.status === 'administrator' ||
+  member?.status === 'creator'
+)
 
-  } catch (err) {
-    return false
-  }
+} catch {
+return false
+}
 }
 
-// ======================
-// 🤖 BOT PRINCIPAL
-// ======================
 bot.on('text', async (ctx) => {
 
-  const user = ctx.from
-  const text = ctx.message.text
+try {
 
-  // ======================
-  // 💬 PV = PAINEL ADMIN
-  // ======================
-  if (ctx.chat.type === 'private') {
+const user = ctx.from
+const text = ctx.message.text
 
-    console.log('📩 PV:', text)
+if (ctx.chat.type === 'private') {
 
-    // pega todos os grupos monitorados
-    const groups = await db.query(`
-      SELECT DISTINCT group_id FROM sessions
-    `)
+  const groups = await db.query(`
+    SELECT DISTINCT group_id
+    FROM sessions
+  `)
 
-    let isAllowed = false
+  let isAllowed = false
 
-    for (const g of groups.rows) {
+  for (const g of groups.rows) {
 
-      const ok = await isAdmin(bot, user.id, g.group_id)
+    const ok = await isAdmin(
+      bot,
+      user.id,
+      g.group_id
+    )
 
-      if (ok) {
-        isAllowed = true
-        break
-      }
+    if (ok) {
+      isAllowed = true
+      break
     }
-
-    if (!isAllowed) {
-      return ctx.reply('❌ Você não é admin, nem dono de nenhum grupo monitorado.')
-    }
-
-    // ======================
-    // 📊 PAINEL ADMIN
-    // ======================
-
-    if (text === '/start') {
-      return ctx.reply(
-`📊 Painel admin ativo
-
-Comandos:
-/usuarios
-/metas
-/tempo @user`
-      )
-    }
-
-    if (text === '/usuarios') {
-
-      const result = await db.query(`
-        SELECT * FROM users
-        ORDER BY id DESC
-        LIMIT 20
-      `)
-
-      const list = result.rows
-        .map(u => `👤 ${u.username || 'sem @'} (${u.first_name || ''})`)
-        .join('\n')
-
-      return ctx.reply(`📋 Usuários:\n\n${list}`)
-    }
-
-    if (text === '/metas') {
-
-      const result = await db.query(`
-        SELECT username, achieved_at
-        FROM achievements
-        ORDER BY achieved_at DESC
-        LIMIT 20
-      `)
-
-      const list = result.rows
-        .map(a =>
-          `🏆 @${a.username} - ${new Date(a.achieved_at).toLocaleString('pt-BR')}`
-        )
-        .join('\n')
-
-      return ctx.reply(`🏆 Metas:\n\n${list}`)
-    }
-
-    if (text.startsWith('/tempo')) {
-
-      const username = text.split(' ')[1]?.replace('@','')
-
-      if (!username) {
-        return ctx.reply('Use: /tempo @usuario')
-      }
-
-      const result = await db.query(`
-        SELECT * FROM achievements
-        WHERE username = $1
-        ORDER BY achieved_at DESC
-        LIMIT 1
-      `, [username])
-
-      if (!result.rows.length) {
-        return ctx.reply('❌ Usuário ainda não bateu meta')
-      }
-
-      const d = new Date(result.rows[0].achieved_at)
-
-      return ctx.reply(
-`👤 @${username}
-🏆 Meta batida:
-📅 ${d.toLocaleDateString('pt-BR')}
-⏰ ${d.toLocaleTimeString('pt-BR')}`
-      )
-    }
-
-    return ctx.reply('📌 Comandos:\n/start\n/usuarios\n/metas\n/tempo @user')
   }
 
-  // ======================
-  // 👥 GRUPO (CONTAGEM DE TEMPO)
-  // ======================
-  await handleMessage(
-    user.id,
-    user.username,
-    user.first_name,
-    user.last_name,
-    ctx.chat.id
-  )
+  if (!isAllowed) {
+    return ctx.reply(
+      '❌ Você não é admin de nenhum grupo monitorado.'
+    )
+  }
+
+  if (text === '/start') {
+
+    return ctx.reply(
+
+`📊 Painel Admin
+
+Comandos:
+
+/usuarios
+/metas
+/tempo @usuario`
+)
+}
+
+  if (text === '/usuarios') {
+
+    const result = await db.query(`
+      SELECT *
+      FROM users
+      ORDER BY id DESC
+      LIMIT 20
+    `)
+
+    const list = result.rows
+      .map(
+        u =>
+          `👤 ${u.username || 'sem @'}`
+      )
+      .join('\n')
+
+    return ctx.reply(
+      `📋 Usuários:\n\n${list}`
+    )
+  }
+
+  if (text === '/metas') {
+
+    const result = await db.query(`
+      SELECT username,
+             achieved_at
+      FROM achievements
+      ORDER BY achieved_at DESC
+      LIMIT 20
+    `)
+
+    const list = result.rows
+      .map(a =>
+        `🏆 @${a.username} - ${new Date(
+          a.achieved_at
+        ).toLocaleString('pt-BR')}`
+      )
+      .join('\n')
+
+    return ctx.reply(
+      `🏆 Metas:\n\n${list}`
+    )
+  }
+
+  return
+}
+
+await handleMessage(
+  user.id,
+  user.username,
+  user.first_name,
+  user.last_name,
+  ctx.chat.id
+)
+
+} catch (err) {
+
+console.error(
+  'Erro bot:',
+  err
+)
+
+}
 })
 
-// ======================
-// 🚀 START BOT
-// ======================
-bot.launch()
+bot.catch((err) => {
+console.error(
+'Erro Telegraf:',
+err
+)
+})
 
-console.log('🤖 Bot rodando')
+process.on(
+'unhandledRejection',
+console.error
+)
+
+process.on(
+'uncaughtException',
+console.error
+)
+
+async function start() {
+
+await bot.telegram.deleteWebhook()
+
+await bot.launch()
+
+console.log(
+'🤖 Bot iniciado'
+)
+}
+
+start()

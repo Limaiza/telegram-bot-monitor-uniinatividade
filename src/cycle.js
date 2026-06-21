@@ -1,14 +1,13 @@
 const db = require('./db')
 
 async function getActiveCycle() {
-  const result = await db.query(`
-    SELECT *
+const result = await db.query(`     SELECT *
     FROM cycles
     WHERE active = true
     LIMIT 1
   `)
 
-  return result.rows[0]
+return result.rows[0] || null
 }
 
 module.exports = { getActiveCycle }
