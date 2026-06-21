@@ -8,27 +8,27 @@ const bot = new Telegraf(process.env.BOT_TOKEN)
 
 global.bot = bot
 
-// 🔥 MUITO IMPORTANTE (resolve PV que não responde)
+// 🔥 remove webhook (ESSENCIAL)
 bot.telegram.deleteWebhook()
 
 // ======================
-// 🔐 CHECK ADMIN
+// 🔐 CHECK ADMIN + DONO
 // ======================
 async function isAdmin(bot, userId, groupId) {
   try {
     const member = await bot.telegram.getChatMember(groupId, userId)
 
-    return (
-      member.status === 'administrator' ||
-      member.status === 'creator'
-    )
+    const status = member?.status
+
+    return status === 'administrator' || status === 'creator'
+
   } catch (err) {
     return false
   }
 }
 
 // ======================
-// 🤖 HANDLER ÚNICO
+// 🤖 BOT PRINCIPAL
 // ======================
 bot.on('text', async (ctx) => {
 
@@ -42,6 +42,7 @@ bot.on('text', async (ctx) => {
 
     console.log('📩 PV:', text)
 
+    // pega todos os grupos monitorados
     const groups = await db.query(`
       SELECT DISTINCT group_id FROM sessions
     `)
@@ -59,11 +60,22 @@ bot.on('text', async (ctx) => {
     }
 
     if (!isAllowed) {
-      return ctx.reply('❌ Você não é admin de nenhum grupo monitorado.')
+      return ctx.reply('❌ Você não é admin, nem dono de nenhum grupo monitorado.')
     }
 
+    // ======================
+    // 📊 PAINEL ADMIN
+    // ======================
+
     if (text === '/start') {
-      return ctx.reply('📊 Painel admin ativo\n\nComandos:\n/usuarios\n/metas\n/tempo @user')
+      return ctx.reply(
+`📊 Painel admin ativo
+
+Comandos:
+/usuarios
+/metas
+/tempo @user`
+      )
     }
 
     if (text === '/usuarios') {
@@ -132,7 +144,7 @@ bot.on('text', async (ctx) => {
   }
 
   // ======================
-  // 👥 GRUPO (TEMPO)
+  // 👥 GRUPO (CONTAGEM DE TEMPO)
   // ======================
   await handleMessage(
     user.id,
