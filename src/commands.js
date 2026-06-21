@@ -1,21 +1,57 @@
-const pool = require('./db')
+module.exports = function setupCommands(bot) {
 
-module.exports = (bot) => {
+  // 🟢 START
+  bot.start((ctx) => {
+    ctx.reply(
+      "👋 Olá! Sou o bot de monitoramento.\n\n" +
+      "📊 Uso:\n" +
+      "/status - ver status\n" +
+      "/ranking - ver ranking\n" +
+      "/tempo @user - tempo do usuário"
+    )
+  })
 
-  bot.command('relatorio', async (ctx) => {
-    const res = await pool.query(`
-      SELECT u.username, a.achieved_at
-      FROM achievements a
-      JOIN users u ON u.id = a.user_id
-    `)
+  // 📊 STATUS
+  bot.command('status', (ctx) => {
+    ctx.reply("📊 Bot está ativo e monitorando o grupo.")
+  })
 
-    let msg = '📊 Relatório:\n\n'
+  // 🏆 RANKING
+  bot.command('ranking', async (ctx) => {
+    ctx.reply("🏆 Buscando ranking da semana...")
+    
+    // depois você conecta com Supabase aqui
+  })
 
-    res.rows.forEach(r => {
-      msg += `@${r.username} - ${r.achieved_at}\n`
-    })
+  // ⏱ TEMPO DE USUÁRIO
+  bot.command('tempo', async (ctx) => {
+    const args = ctx.message.text.split(' ')
 
-    await ctx.telegram.sendMessage(ctx.from.id, msg)
+    if (!args[1]) {
+      return ctx.reply("❌ Use: /tempo @usuario")
+    }
+
+    const username = args[1]
+
+    ctx.reply(`⏱ Buscando tempo de ${username}...`)
+    
+    // depois conecta no banco
+  })
+
+  // 🔄 RESET (ADMIN)
+  bot.command('reset', async (ctx) => {
+    ctx.reply("♻️ Resetando dados da semana...")
+
+    // lógica futura
+  })
+
+  // ⚙ CONFIG
+  bot.command('config', (ctx) => {
+    ctx.reply(
+      "⚙ Configurações:\n" +
+      "- limite 4 min entre mensagens\n" +
+      "- meta 20 min de conversa"
+    )
   })
 
 }

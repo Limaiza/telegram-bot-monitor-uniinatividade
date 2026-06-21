@@ -6,8 +6,10 @@ require('./scheduler')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
+// comandos separados (limpo)
 setupCommands(bot)
 
+// captura mensagens do grupo
 bot.on('text', async (ctx) => {
   if (ctx.chat.type === 'private') return
 
