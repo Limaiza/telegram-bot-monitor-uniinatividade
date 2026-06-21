@@ -1,12 +1,26 @@
 const cron = require('node-cron')
-const pool = require('./db')
-
-cron.schedule('1 0 * * *', async () => {
-  console.log('Relatório diário rodando...')
-})
+const db = require('./db')
 
 cron.schedule('59 23 * * 5', async () => {
-  await pool.query(`DELETE FROM sessions`)
-  await pool.query(`DELETE FROM achievements`)
-  console.log('Reset semanal')
+
+  console.log('♻️ Nova semana')
+
+  await db.query(`
+    UPDATE cycles SET active = false WHERE active = true
+  `)
+
+  await db.query(`
+    INSERT INTO cycles (start_date,end_date,active)
+    VALUES (NOW(), NOW() + INTERVAL '7 days', true)
+  `)
+
+  await db.query(`
+    DELETE FROM sessions
+  `)
+
+  await db.query(`
+    DELETE FROM achievements
+    WHERE achieved_at < NOW() - INTERVAL '14 days'
+  `)
+
 })

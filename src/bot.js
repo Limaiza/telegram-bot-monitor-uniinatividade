@@ -1,25 +1,30 @@
 require('dotenv').config()
+
 const { Telegraf } = require('telegraf')
 const { handleMessage } = require('./logic')
 const setupCommands = require('./commands')
+
 require('./scheduler')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
-// comandos separados (limpo)
+global.bot = bot
+
 setupCommands(bot)
 
-// captura mensagens do grupo
 bot.on('text', async (ctx) => {
+
   if (ctx.chat.type === 'private') return
 
+  const user = ctx.from
+
   await handleMessage(
-    ctx.from.id,
-    ctx.from.username,
+    user.id,
+    user.username,
     ctx.chat.id
   )
 })
 
 bot.launch()
 
-console.log('Bot rodando...')
+console.log('🤖 Bot rodando')

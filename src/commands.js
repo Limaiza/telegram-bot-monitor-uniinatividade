@@ -1,76 +1,97 @@
 const db = require('./db')
 
-module.exports = function setupCommands(bot) {
+module.exports = function(bot) {
 
-  // 🟢 START
-  bot.start((ctx) => {
-    ctx.reply(
-      "👋 Olá! Sou o bot de monitoramento.\n\n" +
-      "📊 Uso:\n" +
-      "/status - ver status\n" +
-      "/ranking - ver ranking\n" +
-      "/tempo @user - tempo do usuário"
-    )
+  // testar banco
+  bot.command('pingdb', async (ctx) => {
+    try {
+      await db.query('SELECT NOW()')
+      ctx.reply('✅ Supabase conectado')
+    } catch {
+      ctx.reply('❌ Erro no banco')
+    }
   })
 
-  // 📊 STATUS
-  bot.command('status', (ctx) => {
-    ctx.reply("📊 Bot está ativo e monitorando o grupo.")
-  })
+  // configurar grupo de relatório
+  bot.command('setgrupo', async (ctx) => {
 
-  // 🏆 RANKING
-  bot.command('ranking', async (ctx) => {
-    ctx.reply("🏆 Buscando ranking da semana...")
-
-    // depois conectar com banco
-  })
-
-  // ⏱ TEMPO DE USUÁRIO (CORRIGIDO)
-  bot.command('tempo', async (ctx) => {
     const args = ctx.message.text.split(' ')
 
     if (!args[1]) {
-      return ctx.reply("❌ Use: /tempo @usuario")
+      return ctx.reply('Use: /setgrupo ID_DO_GRUPO')
     }
 
-    const username = args[1].replace('@', '')
+    await db.query(`
+      UPDATE settings
+      SET report_group_id = $1
+      WHERE id = 1
+    `, [args[1]])
 
-    try {
-      const result = await db.query(
-        'SELECT total_minutes FROM users WHERE username = $1',
-        [username]
-      )
+    ctx.reply('✅ Grupo de relatório salvo')
+  })
 
-      if (result.rows.length === 0) {
-        return ctx.reply("❌ Usuário não encontrado no banco.")
-      }
+  // tempo atual
+  bot.command('tempo', async (ctx) => {
 
-      const minutes = result.rows[0].total_minutes
+    const username = ctx.message.text.split(' ')[1]?.replace('@','')
 
-      return ctx.reply(
-        `⏱ @${username} tem ${minutes} minutos registrados na semana.`
-      )
-
-    } catch (err) {
-      console.error(err)
-      return ctx.reply("❌ Erro ao buscar dados.")
+    if (!username) {
+      return ctx.reply('Use: /tempo @usuario')
     }
-  })
 
-  // 🔄 RESET (ADMIN)
-  bot.command('reset', async (ctx) => {
-    ctx.reply("♻️ Resetando dados da semana...")
+    const cycle = await db.query(`
+      SELECT id FROM cycles WHERE active = true
+    `)
 
-    // lógica futura
-  })
+    const result = await db.query(`
+      SELECT * FROM achievements
+      WHERE username = $1 AND cycle_id = $2
+    `, [username, cycle.rows[0].id])
 
-  // ⚙ CONFIG
-  bot.command('config', (ctx) => {
+    if (!result.rows.length) {
+      return ctx.reply(`❌ @${username} ainda não completou 20 min`)
+    }
+
+    const d = new Date(result.rows[0].achieved_at)
+
     ctx.reply(
-      "⚙ Configurações:\n" +
-      "- limite 4 min entre mensagens\n" +
-      "- meta 20 min de conversa"
+`✅ @${username}
+📅 ${d.toLocaleDateString('pt-BR')}
+⏰ ${d.toLocaleTimeString('pt-BR')}`
     )
   })
 
+  // histórico semana passada
+  bot.command('historico', async (ctx) => {
+
+    const username = ctx.message.text.split(' ')[1]?.replace('@','')
+
+    if (!username) {
+      return ctx.reply('Use: /historico @usuario')
+    }
+
+    const cycle = await db.query(`
+      SELECT id FROM cycles
+      ORDER BY id DESC
+      OFFSET 1 LIMIT 1
+    `)
+
+    const result = await db.query(`
+      SELECT * FROM achievements
+      WHERE username = $1 AND cycle_id = $2
+    `, [username, cycle.rows[0].id])
+
+    if (!result.rows.length) {
+      return ctx.reply(`❌ Sem registro na semana passada`)
+    }
+
+    const d = new Date(result.rows[0].achieved_at)
+
+    ctx.reply(
+`📚 Semana passada
+@${username}
+📅 ${d.toLocaleDateString('pt-BR')}
+⏰ ${d.toLocaleTimeString('pt-BR')}`
+    )
+  })
 }
