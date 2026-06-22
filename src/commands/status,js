@@ -1,0 +1,31 @@
+const db = require("../db");
+
+module.exports = async (ctx) => {
+
+const result =
+await db.query(
+  `SELECT * FROM groups`
+);
+
+if (!result.rowCount)
+return ctx.reply(
+"Nenhuma configuração."
+);
+
+let text = "";
+
+result.rows.forEach(g => {
+
+text +=
+
+`📖 Monitorado:
+${g.monitored_group_name}
+
+📊 Relatório:
+${g.report_group_name}
+
+`;
+});
+
+ctx.reply(text);
+};

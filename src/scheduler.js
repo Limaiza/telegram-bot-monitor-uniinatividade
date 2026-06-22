@@ -1,55 +1,69 @@
-const cron = require('node-cron')
-const db = require('./db')
+const cron = require("node-cron");
+
+const db = require("./db");
+
+const {
+buildDailyReport,
+buildWeeklyFailures
+} = require("./services/reportService");
+
+module.exports = (bot) => {
 
 cron.schedule(
-'59 23 * * 5',
+"0 0 * * *",
 async () => {
 
-try {
+  const groups =
+    await db.query(
+      `
+      SELECT *
+      FROM groups
+      WHERE report_group_id <> 0
+      `
+    );
 
-  console.log('♻️ Nova semana')
+  for (const group of groups.rows) {
 
-  await db.query(`
-    UPDATE cycles
-    SET active = false
-    WHERE active = true
-  `)
+    const report =
+      await buildDailyReport(
+        group.monitored_group_id
+      );
 
-  await db.query(`
-    INSERT INTO cycles (
-      start_date,
-      end_date,
-      active
-    )
-    VALUES (
-      NOW(),
-      NOW() + INTERVAL '7 days',
-      true
-    )
-  `)
-
-  await db.query(`
-    DELETE FROM sessions
-  `)
-
-  await db.query(`
-    DELETE FROM achievements
-    WHERE achieved_at <
-    NOW() - INTERVAL '14 days'
-  `)
-
-  console.log('✅ Ciclo reiniciado')
-
-} catch (err) {
-
-  console.error(
-    'Erro scheduler:',
-    err
-  )
+    await bot.telegram.sendMessage(
+      group.report_group_id,
+      report
+    );
+  }
 }
 
-},
-{
-timezone: 'America/Sao_Paulo'
+);
+
+cron.schedule(
+"59 23 * * 5",
+async () => {
+
+  const groups =
+    await db.query(
+      `
+      SELECT *
+      FROM groups
+      WHERE report_group_id <> 0
+      `
+    );
+
+  for (const group of groups.rows) {
+
+    const report =
+      await buildWeeklyFailures(
+        group.monitored_group_id
+      );
+
+    await bot.telegram.sendMessage(
+      group.report_group_id,
+      report
+    );
+  }
 }
-)
+
+);
+};
